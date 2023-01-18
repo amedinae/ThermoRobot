@@ -15,6 +15,7 @@
 #define TIMEOUT 1000 
 
 #include <Adafruit_MPL3115A2.h>
+#include <avr/interrupt.h>
 
 Adafruit_MPL3115A2 baro;
 
@@ -33,7 +34,7 @@ bool encoder2Value = 0;
 //Target values
 int targetPosition=0; //159=53*3 one turn
 int temperature=0;
-int lastMeasureTime = 0;
+bool firstMeasure = true;
 
 //Measured values
 volatile float motorPosition = 0;
@@ -83,11 +84,12 @@ void setup() {
   analogWrite(EN, valuePWM);
   digitalWrite(DIR, currentDir);
   delay(1);   // Wait for things to settle
-  bitClear (TCCR2A, WGM20); // WGM20 = 0
-  bitClear (TCCR2A, WGM21); // WGM21 = 0 
-  TCCR2B = 0b00000110; // Clock / 256 soit 16 micro-s et WGM22 = 0
-  TIMSK2 = 0b00000001; // Interruption locale autorisée par TOIE2
-  sei(); // Active l'interruption globale
+  TCCR1A = 0;
+  TCCR1B = 1<<WGM12 | 1<<CS12 | 0<<CS11 | 1<<CS10;
+  TCNT1 = 0;          // reset Timer 1 counter
+  // OCR1A = ((F_clock / prescaler) / Fs) - 1 = 2499
+  OCR1A = 7812*2;       // Set sampling frequency Fs = 100 Hz
+  TIMSK1 = 1<<OCIE1A; // Enable Timer 1 interrupt
   attachInterrupt(digitalPinToInterrupt(SA),checkEncoder,RISING);
 
   setSpd(120); 
@@ -98,8 +100,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeaedly:
-  getTemp();
-
+  
   defineTarget();
 
   calculatePID();
@@ -110,22 +111,34 @@ void loop() {
   //   setSpd(0);
   // }
 
-  printValues();
+  //printValues();
 
 }
 
+ISR(TIMER1_COMPA_vect) {
+  getTemp();
+}
+
 void getTemp(){
-  if (lastMeasureTime==0) {
-    baro.startOneShot();
-    lastMeasureTime = millis();
-    return;
-  }
-  if (millis()-lastMeasureTime > 500) {
-    lastMeasureTime = millis();
-    baro.startOneShot();
+  //Serial.println("ISR");
+  baro.startOneShot();
+  if (!firstMeasure) {
     temperature=baro.getLastConversionResults(MPL3115A2_TEMPERATURE);
-    Serial.print("temperature = "); Serial.print(temperature); Serial.println(" C");
+    firstMeasure = false;
   }
+  //temperature = baro.getTemperature();
+  Serial.print("temperature = "); Serial.print(temperature); Serial.println(" C");  
+  // if (lastMeasureTime==0) {
+  //   baro.startOneShot();
+  //   lastMeasureTime = millis();
+  //   return;
+  // }
+  // if (millis()-lastMeasureTime > 500) {
+  //   lastMeasureTime = millis();
+  //   baro.startOneShot();
+  //   temperature=baro.getLastConversionResults(MPL3115A2_TEMPERATURE);
+  //   Serial.print("temperature = "); Serial.print(temperature); Serial.println(" C");
+  // }
 }
 
 void defineTarget(){
