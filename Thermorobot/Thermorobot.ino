@@ -46,12 +46,16 @@ float Kp=5;
 float Ki=1.5;
 float Kd=3;
 float u= 0 ;
+float previousUv=0;
+float uCM=0;
 
 
 //PID related
 float previousTime=0;  //for calculating delta t
 float previousError=0; // for calculating the derivative
+float previous2Error=0;
 float errorIntegral=0; // integral error
+float errorProporcional=0;
 float currentTime=0; //time in the moment of calculation
 float deltaTime=0; //time difference
 float errorValue=0; //error
@@ -84,12 +88,12 @@ void setup() {
   analogWrite(EN, valuePWM);
   digitalWrite(DIR, currentDir);
   delay(1);   // Wait for things to settle
-  TCCR1A = 0;
-  TCCR1B = 1<<WGM12 | 1<<CS12 | 0<<CS11 | 1<<CS10;
-  TCNT1 = 0;          // reset Timer 1 counter
-  // OCR1A = ((F_clock / prescaler) / Fs) - 1 = 2499
-  OCR1A = 7812*2;       // Set sampling frequency Fs = 100 Hz
-  TIMSK1 = 1<<OCIE1A; // Enable Timer 1 interrupt
+  // TCCR1A = 0;
+  // TCCR1B = 1<<WGM12 | 1<<CS12 | 0<<CS11 | 1<<CS10;
+  // TCNT1 = 0;          // reset Timer 1 counter
+  // // OCR1A = ((F_clock / prescaler) / Fs) - 1 = 2499
+  // OCR1A = 7812*2;       // Set sampling frequency Fs = 100 Hz
+  // TIMSK1 = 1<<OCIE1A; // Enable Timer 1 interrupt
   attachInterrupt(digitalPinToInterrupt(SA),checkEncoder,RISING);
 
   setSpd(120); 
@@ -107,17 +111,17 @@ void loop() {
 
   driveMotor();
 
-  // if(counter==(53*6)*3){     //159 pulses
-  //   setSpd(0);
-  // }
+  //  if(counter==(53*3)){     //159 pulses
+  //    setSpd(0);
+  //  }
 
-  //printValues();
+  printValues();
 
 }
 
-ISR(TIMER1_COMPA_vect) {
-  getTemp();
-}
+// ISR(TIMER1_COMPA_vect) {
+//   getTemp();
+// }
 
 void getTemp(){
   //Serial.println("ISR");
@@ -185,13 +189,18 @@ void calculatePID(){
 
   errorValue = motorPosition - targetPosition;
 
-  edot= (errorValue - previousError)/deltaTime;
+  errorProporcional = errorValue-previousError;
 
-  errorIntegral = errorIntegral + errorValue*deltaTime;
+  edot= (errorValue - 2*previousError+ previous2Error);
 
-  u = (Kp*errorValue) + (Kd*edot) + (Ki*errorIntegral);
+  errorIntegral = errorValue*deltaTime;
+
+  u = (Kp*errorProporcional) + (Kd*edot) + (Ki*errorIntegral);
+
+  uCM=previousUv+u;
 
   previousError = errorValue;
+  previous2Error = previousError;
 }
 
 void checkEncoder(){
@@ -220,21 +229,24 @@ void printValues(){
   Serial.println(motorPosition);
 }
 
-bool setSpd(int newSpeed){
-  // Ensure that new speed is within bounds
+int Sat(int newSpeed){
   if (newSpeed > 255) {
     newSpeed = 255;
   }
-  else if(newSpeed<=255 && newSpeed>=40){
-    newSpeed=newSpeed;
-  }
-  else if (newSpeed < 45  && errorValue != 0){
-     newSpeed = 45;
+  // else if(newSpeed<=255 && newSpeed>=40){
+  //   newSpeed=newSpeed;
+  // }
+  else if (newSpeed < 0 ){
+     newSpeed = 0;
      //Serial.println("Entre");
   }
-  else {
-    newSpeed=0;
-  } 
+  
+  return newSpeed;  
+}
+
+bool setSpd(int newSpeed){
+  // Ensure that new speed is within bounds
+  newSpeed=Sat(newSpeed);
 
   valuePWM = newSpeed;
   analogWrite(EN, valuePWM);
