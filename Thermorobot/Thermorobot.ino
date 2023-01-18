@@ -43,15 +43,20 @@ float previousMotorPosition = -1;
 
 // PID parameters
 float Kp=5;
-float Ki=1.5;
+float Ki=1.6;
 float Kd=3;
 float u= 0 ;
+float previousUv=0;
+float uCM=0;
+float uV=0;
 
 
 //PID related
 float previousTime=0;  //for calculating delta t
 float previousError=0; // for calculating the derivative
+float previous2Error=0;
 float errorIntegral=0; // integral error
+float errorProporcional=0;
 float currentTime=0; //time in the moment of calculation
 float deltaTime=0; //time difference
 float errorValue=0; //error
@@ -92,7 +97,7 @@ void setup() {
   TIMSK1 = 1<<OCIE1A; // Enable Timer 1 interrupt
   attachInterrupt(digitalPinToInterrupt(SA),checkEncoder,RISING);
 
-  setSpd(120); 
+  setSpd(0); 
   setDir(1);
 }
 
@@ -107,11 +112,11 @@ void loop() {
 
   driveMotor();
 
-  // if(counter==(53*6)*3){     //159 pulses
-  //   setSpd(0);
-  // }
+  // if(counter==(53*3)){     //159 pulses
+  //    setSpd(0);
+  //  }
 
-  //printValues();
+  printValues();
 
 }
 
@@ -147,15 +152,15 @@ void defineTarget(){
 
 void driveMotor(){
   //Direction
-  if(u<0){
+  if(uV<0){
     motorDir=0;
   }
-  else if(u>0){
+  else if(uV>0){
     motorDir=1;    
   }
 
   //Speed
-  valuePWM = (int)fabs(u);
+  valuePWM = (int)fabs(uV);
 
 
   if(valuePWM!=0){
@@ -185,13 +190,22 @@ void calculatePID(){
 
   errorValue = motorPosition - targetPosition;
 
-  edot= (errorValue - previousError)/deltaTime;
+  errorProporcional = errorValue-previousError;
 
-  errorIntegral = errorIntegral + errorValue*deltaTime;
+  edot= (errorValue - 2*previousError+ previous2Error);
 
-  u = (Kp*errorValue) + (Kd*edot) + (Ki*errorIntegral);
+  errorIntegral = errorValue*deltaTime;
+
+  u = (Kp*errorProporcional) + (Kd*edot) + (Ki*errorIntegral);
+
+  uCM=previousUv+u;
 
   previousError = errorValue;
+  previous2Error = previousError;
+
+  uV=Sat(uCM);
+  previousUv=uV;
+  
 }
 
 void checkEncoder(){
@@ -211,7 +225,7 @@ void printValues(){
   Serial.print(" ");  
   Serial.print(errorValue);
   Serial.print(" ");
-  Serial.print(u);
+  Serial.print(uV);
   Serial.print(" ");  
   Serial.print(valuePWM);
   Serial.print(" ");
@@ -220,21 +234,42 @@ void printValues(){
   Serial.println(motorPosition);
 }
 
+int SatPWM(int newSpeed) {
+  if (newSpeed> 255) {
+    return 255;
+  } else if (  newSpeed > 0 && newSpeed < 40 ) {
+    return 40;
+  } else if( newSpeed < 0) {
+    return 0;
+  }
+  return newSpeed;  
+}
+
+int Sat(int newSpeed){
+  if (fabs(newSpeed)<= 255) {
+    return newSpeed;
+  } else if( newSpeed > 0) {
+    return 255;
+  }
+  return -255;
+
+  // if (newSpeed > 255) {
+  //   newSpeed = 255;
+  // }
+  // // else if(newSpeed<=255 && newSpeed>=40){
+  // //   newSpeed=newSpeed;
+  // // }
+  // else if (newSpeed < 0 ){
+  //    newSpeed = 0;
+  //    //Serial.println("Entre");
+  // }
+  
+  // return newSpeed;  
+}
+
 bool setSpd(int newSpeed){
   // Ensure that new speed is within bounds
-  if (newSpeed > 255) {
-    newSpeed = 255;
-  }
-  else if(newSpeed<=255 && newSpeed>=40){
-    newSpeed=newSpeed;
-  }
-  else if (newSpeed < 45  && errorValue != 0){
-     newSpeed = 45;
-     //Serial.println("Entre");
-  }
-  else {
-    newSpeed=0;
-  } 
+  newSpeed=SatPWM(newSpeed);
 
   valuePWM = newSpeed;
   analogWrite(EN, valuePWM);
