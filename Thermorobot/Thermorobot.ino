@@ -42,9 +42,10 @@ float previousMotorPosition = -1;
 
 
 // PID parameters
-float Kp = 0.0713;
-float Ki = 6.9590;
-float Kd = 7.12*10E-5;
+
+float Kp = 0.04;
+float Ki = 0.03;
+float Kd = 0.0001;
 float u = 0;
 float previousUv = 0;
 float uCM = 0;
@@ -162,7 +163,7 @@ void getTemp() {
 int defineTarget(int measuredTemperature) {
   if(end==false){
     //return temperature * 1.65625;
-    return measuredTemperature/6.289;
+    return measuredTemperature* 1.65625;
   }
   else{
     return 0;
@@ -215,7 +216,7 @@ void calculatePID() {
 
   u = (Kp * errorProporcional) + (Kd * edot) + (Ki * errorIntegral);
 
-  uCM = u//previousUv + u;
+  uCM = u;//previousUv + u;
 
   previousError = errorValue;
   //previous2Error = previousError;
