@@ -113,17 +113,10 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeaedly:
-  
-  if(end==false){
-    defineTarget();
-  }
-  else{
-    targetPosition=0;
-  }
-
+  targetPosition = defineTarget(temperature);
   calculatePID();
 
-  driveMotor();
+  driveMotor(uV);
 
   if (errorValue == 0) {
     temperature = baro.getTemperature();
@@ -135,8 +128,6 @@ void loop() {
   //    setSpd(0);
   //  }
   
-  
-
   printValues();
 }
 
@@ -168,21 +159,26 @@ void getTemp() {
   // }
 }
 
-void defineTarget() {
-  //targetPosition = temperature * 1.65625;
-  targetPosition=analogRead(A0)/6.289;
+int defineTarget(int measuredTemperature) {
+  if(end==false){
+    //targetPosition = temperature * 1.65625;
+    return measuredTemperature/6.289;
+  }
+  else{
+    return 0;
+  }
 };
 
-void driveMotor() {
+void driveMotor(int speed) {
   //Direction
-  if (uV < 0) {
+  if (speed < 0) {
     motorDir = 0;
-  } else if (uV > 0) {
+  } else if (speed > 0) {
     motorDir = 1;
   }
 
   //Speed
-  valuePWM = (int)fabs(uV);
+  valuePWM = (int)fabs(speed);
 
 
   if (valuePWM != 0) {
