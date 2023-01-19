@@ -4,7 +4,7 @@
 #define SA 3
 #define SB 9
 #define POT A0
-#define BTN2 21
+#define BTN2 18
 #define BTN3 23
 
 #define DELAY 20
@@ -19,6 +19,8 @@
 
 Adafruit_MPL3115A2 baro;
 
+float temperature = 60;
+bool manual=0;
 
 bool changeDir();
 bool setDir(bool newDir);
@@ -31,10 +33,13 @@ bool motorDir = 0;
 bool encoder2Value = 0;
 
 
+
+
 //Target values
 int targetPosition = 0;  //159=53*3 one turn
-float temperature = 0;
+
 bool firstMeasure = true;
+
 
 //Measured values
 volatile float motorPosition = 0;
@@ -42,9 +47,9 @@ float previousMotorPosition = -1;
 
 
 // PID parameters
-float Kp = 0.0713;
-float Ki = 6.9590;
-float Kd = 7.12*10E-5;
+float Kp = 5;
+float Ki = 1.6;
+float Kd = 3;
 float u = 0;
 float previousUv = 0;
 float uCM = 0;
@@ -99,8 +104,8 @@ void setup() {
   // OCR1A = 7812*2;       // Set sampling frequency Fs = 100 Hz
   // TIMSK1 = 1<<OCIE1A; // Enable Timer 1 interrupt
   attachInterrupt(digitalPinToInterrupt(SA), checkEncoder, RISING);
-  //attachInterrupt(2, setEnd, RISING );
-  temperature = baro.getTemperature();
+  attachInterrupt(5, setEnd, RISING );
+  //temperature = baro.getTemperature();
   Serial.print("temperature = ");
   Serial.print(temperature);
   Serial.println(" C");
@@ -118,12 +123,12 @@ void loop() {
 
   driveMotor(uV);
 
-  if (errorValue == 0) {
-    temperature = baro.getTemperature();
-    Serial.print("temperature = ");
-    Serial.print(temperature);
-    Serial.println(" C");
-  }
+  // if (errorValue == 0) {
+  //   temperature = baro.getTemperature();
+  //   Serial.print("temperature = ");
+  //   Serial.print(temperature);
+  //   Serial.println(" C");
+  // }
   // if(counter==(53*3)){     //159 pulses
   //    setSpd(0);
   //  }
@@ -161,8 +166,12 @@ void getTemp() {
 
 int defineTarget(int measuredTemperature) {
   if(end==false){
-    //targetPosition = temperature * 1.65625;
-    return measuredTemperature/6.289;
+    if(!manual){
+      return measuredTemperature*1.657;
+    }
+    else{
+      return analogRead(A0)/6.289;      
+    }    
   }
   else{
     return 0;
