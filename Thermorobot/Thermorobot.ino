@@ -17,6 +17,10 @@
 #include <Adafruit_MPL3115A2.h>
 #include <avr/interrupt.h>
 
+bool manual=0;
+float temperature = 0;
+int PWM_MIN=45;
+
 Adafruit_MPL3115A2 baro;
 
 
@@ -33,7 +37,7 @@ bool encoder2Value = 0;
 
 //Target values
 int targetPosition = 0;  //159=53*3 one turn
-float temperature = 0;
+
 bool firstMeasure = true;
 
 //Measured values
@@ -42,10 +46,10 @@ float previousMotorPosition = -1;
 
 
 // PID parameters
-
-float Kp = 0.04;
-float Ki = 0.03;
-float Kd = 0.0001;
+float m=0.01;
+float Kp =22*m;
+float Ki = 40*m;
+float Kd = 5*m;
 float u = 0;
 float previousUv = 0;
 float uCM = 0;
@@ -77,7 +81,7 @@ void setup() {
   pinMode(BTN3, INPUT);
 
   //Initialize Sensor
-  Serial.begin(500000);
+  Serial.begin(1000000);
   while (!Serial)
     ;
   Serial.println("Adafruit_MPL3115A2 test!");
@@ -100,7 +104,7 @@ void setup() {
   // OCR1A = 7812*2;       // Set sampling frequency Fs = 100 Hz
   // TIMSK1 = 1<<OCIE1A; // Enable Timer 1 interrupt
   attachInterrupt(digitalPinToInterrupt(SA), checkEncoder, RISING);
-  //attachInterrupt(2, setEnd, RISING );
+  attachInterrupt(5, setEnd, RISING );
   temperature = baro.getTemperature();
   Serial.print("temperature = ");
   Serial.print(temperature);
@@ -162,7 +166,9 @@ void getTemp() {
 
 int defineTarget(int measuredTemperature) {
   if(end==false){
-    //return temperature * 1.65625;
+    if(manual){
+      return analogRead(A0) / 6.289;
+    }    
     return measuredTemperature* 1.65625;
   }
   else{
@@ -236,27 +242,30 @@ void checkEncoder() {
   counter++;
 }
 
-void printValues() {
-  Serial.print("BTN2: ");
-  Serial.print(digitalRead(BTN2));
-  Serial.print(" T: ");
-  Serial.print(temperature);
-  Serial.print(" Target: ");
-  Serial.print(targetPosition);
+void printValues() {  
   Serial.print(" error: ");
-  Serial.print(errorValue);  
+  Serial.print(errorValue);   
+  Serial.print(" error p: ");
+  Serial.print((Kp * errorProporcional));
+  Serial.print(" error i: ");
+  Serial.print((Ki * errorIntegral)); 
+  Serial.print(" error d: ");
+  Serial.print((Kd * edot));  
   Serial.print(" u: ");
   Serial.print(u);
   Serial.print(" uV: ");
   Serial.print(uV);
   Serial.print(" PWM: ");
   Serial.print(valuePWM);
-  Serial.print(" dir: ");
-  Serial.print(motorDir);
+  Serial.print("  -------------->");   
+  Serial.print(" T: ");
+  Serial.print(temperature);
+  Serial.print(" Target: ");
+  Serial.print(targetPosition);  
   Serial.print(" Pos: ");
-  Serial.println(motorPosition);
-  Serial.print(" end: ");
-  Serial.println(end);
+  Serial.print(motorPosition);
+  Serial.print(" error: ");
+  Serial.println(errorValue); 
 }
 
 int SatPWM(int newSpeed) {
@@ -265,8 +274,8 @@ int SatPWM(int newSpeed) {
   }
   if (newSpeed > 255) {
     return 255;
-  } else if (newSpeed > 0 && newSpeed < 40) {
-    return 40;
+  } else if (newSpeed > 0 && newSpeed < PWM_MIN) {
+    return PWM_MIN;
   } else if (newSpeed < 0) {
     return 0;
   }
