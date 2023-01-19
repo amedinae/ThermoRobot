@@ -161,7 +161,7 @@ void getTemp() {
 
 int defineTarget(int measuredTemperature) {
   if(end==false){
-    //targetPosition = temperature * 1.65625;
+    //return temperature * 1.65625;
     return measuredTemperature/6.289;
   }
   else{
@@ -202,23 +202,23 @@ void driveMotor(int speed) {
 
 void calculatePID() {
   currentTime = micros();
-  deltaTime = (currentTime - previousTime) / 1000000.0;
+  deltaTime = (currentTime - previousTime) / 1.0e6;
   previousTime = currentTime;
 
   errorValue = motorPosition - targetPosition;
 
-  errorProporcional = errorValue - previousError;
+  errorProporcional = errorValue;//errorValue - previousError;
 
-  edot = (errorValue - 2 * previousError + previous2Error);
+  edot = (errorValue-previousError)/deltaTime;//(errorValue - 2 * previousError + previous2Error);
 
-  errorIntegral = errorValue * deltaTime;
+  errorIntegral = errorIntegral + errorValue * deltaTime;
 
   u = (Kp * errorProporcional) + (Kd * edot) + (Ki * errorIntegral);
 
-  uCM = previousUv + u;
+  uCM = u//previousUv + u;
 
   previousError = errorValue;
-  previous2Error = previousError;
+  //previous2Error = previousError;
 
   uV = Sat(uCM);
   previousUv = uV;
