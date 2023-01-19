@@ -19,8 +19,17 @@
 
 Adafruit_MPL3115A2 baro;
 
-float temperature = 60;
+float temperature = 0;
 bool manual=0;
+
+// PID parameters
+float Kp = 0.001;
+float Ki = 5.5;
+float Kd = 0.02;
+float u = 0;
+float previousUv = 0;
+float uCM = 0;
+float uV = 0;
 
 bool changeDir();
 bool setDir(bool newDir);
@@ -46,14 +55,7 @@ volatile float motorPosition = 0;
 float previousMotorPosition = -1;
 
 
-// PID parameters
-float Kp = 5;
-float Ki = 1.6;
-float Kd = 3;
-float u = 0;
-float previousUv = 0;
-float uCM = 0;
-float uV = 0;
+
 
 
 //PID related
@@ -105,7 +107,7 @@ void setup() {
   // TIMSK1 = 1<<OCIE1A; // Enable Timer 1 interrupt
   attachInterrupt(digitalPinToInterrupt(SA), checkEncoder, RISING);
   attachInterrupt(5, setEnd, RISING );
-  //temperature = baro.getTemperature();
+  temperature = baro.getTemperature();
   Serial.print("temperature = ");
   Serial.print(temperature);
   Serial.println(" C");
@@ -123,7 +125,7 @@ void loop() {
 
   driveMotor(uV);
 
-  // if (errorValue == 0) {
+  // if (errorValue <= 2) {
   //   temperature = baro.getTemperature();
   //   Serial.print("temperature = ");
   //   Serial.print(temperature);
