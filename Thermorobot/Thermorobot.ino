@@ -42,20 +42,24 @@ bool motorDir = 0;
 bool encoder2Value = 0;
 
 
-
-
 //Target values
 int targetPosition = 0;  //159=53*3 one turn
-
+float temperature = 0;
 bool firstMeasure = true;
-
 
 //Measured values
 volatile float motorPosition = 0;
 float previousMotorPosition = -1;
 
 
-
+// PID parameters
+float Kp = 0.0713;
+float Ki = 6.9590;
+float Kd = 7.12*10E-5;
+float u = 0;
+float previousUv = 0;
+float uCM = 0;
+float uV = 0;
 
 
 //PID related
@@ -213,23 +217,23 @@ void driveMotor(int speed) {
 
 void calculatePID() {
   currentTime = micros();
-  deltaTime = (currentTime - previousTime) / 1000000.0;
+  deltaTime = (currentTime - previousTime) / 1.0e6;
   previousTime = currentTime;
 
   errorValue = motorPosition - targetPosition;
 
-  errorProporcional = errorValue - previousError;
+  errorProporcional = errorValue;//errorValue - previousError;
 
-  edot = (errorValue - 2 * previousError + previous2Error);
+  edot = (errorValue-previousError)/deltaTime;//(errorValue - 2 * previousError + previous2Error);
 
-  errorIntegral = errorValue * deltaTime;
+  errorIntegral = errorIntegral + errorValue * deltaTime;
 
   u = (Kp * errorProporcional) + (Kd * edot) + (Ki * errorIntegral);
 
-  uCM = previousUv + u;
+  uCM = u//previousUv + u;
 
   previousError = errorValue;
-  previous2Error = previousError;
+  //previous2Error = previousError;
 
   uV = Sat(uCM);
   previousUv = uV;
