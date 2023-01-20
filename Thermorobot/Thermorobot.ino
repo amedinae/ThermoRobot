@@ -312,19 +312,6 @@ bool setSpd(int newSpeed) {
   analogWrite(EN, valuePWM);
 }
 
-bool changeDir() {
-  // Stop our motor so we can change direction
-  analogWrite(EN, 0);
-  delay(10);  // Wait a bit for things to settle
-
-  // Change our direction
-  currentDir = !currentDir;
-  digitalWrite(DIR, currentDir);
-  delay(10);  // Wait a bit for things to settle
-
-  // Start our motor back up again
-  analogWrite(EN, valuePWM);
-}
 
 bool setDir(bool newDir) {
   // Stop our motor so we can change direction
